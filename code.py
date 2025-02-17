@@ -1,29 +1,38 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from scipy.sparse import diags
-from scipy.sparse.linalg import spsolve
 
-L = 10
-N = 100
+N = 50
+L = 2.0
 dx = L / N
-dt = 0.01
-x = np.linspace(-L / 2, L / 2, N)
+dt = 0.001
+nu = 0.1
 
-V = np.zeros(N)
-V[0], V[-1] = 1e6, 1e6
+x = np.linspace(0, L, N)
+y = np.linspace(0, L, N)
+X, Y = np.meshgrid(x, y)
 
-alpha = 1j * dt / (2 * dx**2)
-main_diag = (1 - 2 * alpha) * np.ones(N)
-off_diag = alpha * np.ones(N - 1)
+u = np.zeros((N, N))
+v = np.zeros((N, N))
 
-A = diags([off_diag, main_diag, off_diag], [-1, 0, 1], format="csc")
-B = diags([-off_diag, (1 + 2 * alpha) * np.ones(N), -off_diag], [-1, 0, 1], format="csc")
+def solve_navier_stokes(u, v, steps=100):
+    for _ in range(steps):
+        u[1:-1, 1:-1] += dt * (
+            - u[1:-1, 1:-1] * (u[2:, 1:-1] - u[:-2, 1:-1]) / (2 * dx)
+            - v[1:-1, 1:-1] * (u[1:-1, 2:] - u[1:-1, :-2]) / (2 * dx)
+            + nu * ((u[2:, 1:-1] - 2 * u[1:-1, 1:-1] + u[:-2, 1:-1]) / dx**2 +
+                    (u[1:-1, 2:] - 2 * u[1:-1, 1:-1] + u[1:-1, :-2]) / dx**2)
+        )
+        v[1:-1, 1:-1] += dt * (
+            - u[1:-1, 1:-1] * (v[2:, 1:-1] - v[:-2, 1:-1]) / (2 * dx)
+            - v[1:-1, 1:-1] * (v[1:-1, 2:] - v[1:-1, :-2]) / (2 * dx)
+            + nu * ((v[2:, 1:-1] - 2 * v[1:-1, 1:-1] + v[:-2, 1:-1]) / dx**2 +
+                    (v[1:-1, 2:] - 2 * v[1:-1, 1:-1] + v[1:-1, :-2]) / dx**2)
+        )
+    return u, v
 
-psi = np.exp(-x**2) * np.exp(1j * 5 * x)
 
-for _ in range(100):
-    psi = spsolve(B, A @ psi)
+u, v = solve_navier_stokes(u, v, steps=200)
 
-plt.plot(x, np.abs(psi)**2, label="Distribusi Probabilitas |ψ|²")
-plt.legend()
+plt.quiver(X, Y, u, v)
+plt.title("Simulasi Aliran Fluida (Navier-Stokes)")
 plt.show()
